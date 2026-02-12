@@ -12,7 +12,7 @@ MAX_PRICE = int(os.getenv("MAX_PRICE_EUR", "700"))
 ORIGIN = "AMS"
 ADULTS = 2
 CHILDREN = 1
-MAX_DURATION_HOURS = 6
+MAX_DURATION_HOURS = 8
 
 PERIODS = [
     ("2026-02-21", "2026-03-01"),
@@ -20,19 +20,30 @@ PERIODS = [
     ("2026-10-18", "2026-10-26"),
 ]
 
-WINTER = ["AYT","HRG","LCA"]
+WINTER = ["AYT", "DLM", "HRG", "SSH"]
 SUMMER = ["ALC","AGP","FAO","HER","RHO","AYT"]
 AUTUMN = ["FAO","ALC","AGP","LCA","AYT"]
 
 IATA_MAP = {
-    "AYT": "Antalya, Turkey",
-    "HRG": "Hurghada, Egypt",
-    "LCA": "Larnaca, Cyprus",
     "ALC": "Alicante, Spain",
     "AGP": "Malaga, Spain",
+    "PMI": "Palma de Mallorca, Spain",
+    "IBZ": "Ibiza, Spain",
+    "TFS": "Tenerife South, Spain",
     "FAO": "Faro, Portugal",
+    "LIS": "Lisbon, Portugal",
+    "NAP": "Naples, Italy",
+    "BRI": "Bari, Italy",
+    "PSR": "Olbia (Sardinia), Italy",
+    "CAG": "Cagliari (Sardinia), Italy",
     "HER": "Heraklion, Greece",
-    "RHO": "Rhodes, Greece"
+    "RHO": "Rhodes, Greece",
+    "CFU": "Corfu, Greece",
+    "SKG": "Thessaloniki, Greece",
+    "AYT": "Antalya, Turkey",
+    "DLM": "Dalaman, Turkey",
+    "HRG": "Hurghada, Egypt",
+    "SSH": "Sharm El Sheikh, Egypt"
 }
 
 AIRLINE_MAP = {
@@ -40,7 +51,13 @@ AIRLINE_MAP = {
     "VY": "Vueling",
     "HV": "Transavia",
     "U2": "easyJet",
-    "FR": "Ryanair"
+    "FR": "Ryanair",
+    "AZ": "Alitalia / ITA Airways",
+    "SN": "Brussels Airlines",
+    "LX": "Swiss",
+    "AF": "Air France",
+    "TK": "Turkish Airlines",
+    "MS": "EgyptAir"
 }
 
 def get_access_token():

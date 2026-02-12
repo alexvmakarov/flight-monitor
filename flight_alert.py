@@ -1,5 +1,7 @@
 import os
 import requests
+import time
+import random
 from datetime import datetime, timedelta
 
 # ------------------- НАСТРОЙКИ -------------------
@@ -7,27 +9,42 @@ ORIGIN = "AMS"
 ADULTS = 2
 CHILDREN = 1
 MAX_DURATION_HOURS = 8
-MAX_PRICE = float(os.getenv("MAX_PRICE_EUR", "1200"))  # берем из секретов
-BAG_ESTIMATE_ONEWAY = 35  # эвристика багажа, если нужно добавить
+BAG_ESTIMATE_ONEWAY = 35
 
 AMADEUS_API_KEY = os.getenv("AMADEUS_API_KEY")
 AMADEUS_API_SECRET = os.getenv("AMADEUS_API_SECRET")
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+MAX_PRICE = float(os.getenv("MAX_PRICE_EUR"))
+
+# ------------------- AIRLINE MAP -------------------
+AIRLINE_MAP = {
+    "KL": "KLM",
+    "LH": "Lufthansa",
+    "AF": "Air France",
+    "RY": "Ryanair",
+    "FR": "Ryanair",
+    "W6": "Wizz Air",
+    "EZ": "EasyJet",
+    "BA": "British Airways",
+    "SN": "Brussels Airlines",
+    "IB": "Iberia",
+    # можно добавлять по необходимости
+}
 
 # ------------------- СЕЗОНЫ -------------------
-WINTER = ["AYT", "DLM", "HRG", "SSH"]
+WINTER = ["AYT", "DLM", "HRG", "SSH", "LCA"]
 SUMMER = [
     "ALC","AGP","PMI","IBZ","TFS",
     "FAO","LIS",
     "NAP","BRI","PSR","CAG",
     "HER","RHO","CFU","SKG",
     "AYT","DLM",
-    "HRG","SSH"
+    "HRG","SSH",
+    "LCA"
 ]
-AUTUMN = ["ALC","AGP","PMI","IBZ","FAO","HER","RHO","AYT","DLM","HRG","SSH"]
+AUTUMN = ["ALC","AGP","PMI","IBZ","FAO","HER","RHO","AYT","DLM","HRG","SSH","LCA"]
 
-# ------------------- IATA → город/страна -------------------
 IATA_MAP = {
     "ALC": "Alicante, Spain",
     "AGP": "Malaga, Spain",
@@ -47,7 +64,8 @@ IATA_MAP = {
     "AYT": "Antalya, Turkey",
     "DLM": "Dalaman, Turkey",
     "HRG": "Hurghada, Egypt",
-    "SSH": "Sharm El Sheikh, Egypt"
+    "SSH": "Sharm El Sheikh, Egypt",
+    "LCA": "Larnaca, Cyprus"
 }
 
 # ------------------- Периоды каникул -------------------
@@ -79,7 +97,6 @@ def get_access_token():
     return r.json()["access_token"]
 
 def duration_under_limit(duration_iso):
-    # ISO 8601 PTxHyM
     if duration_iso.startswith("PT"):
         h = 0
         m = 0
@@ -107,13 +124,19 @@ def generate_date_pairs(start, end):
     end = datetime.fromisoformat(end)
     pairs = []
     d = start
-    while d <= end:
+
+    # меньше пар для длинных летних каникул
+    max_pairs = 6 if start.month in (7,8) else 12
+
+    while d <= end and len(pairs) < max_pairs:
         for stay in range(5, 12):
             ret = d + timedelta(days=stay)
             if ret <= end:
                 pairs.append((d.strftime("%Y-%m-%d"), ret.strftime("%Y-%m-%d")))
+                if len(pairs) >= max_pairs:
+                    break
         d += timedelta(days=3)
-    return pairs[:12]  # ограничение количества пар для API
+    return pairs
 
 def search_flights(token, origin, dest, depart, ret):
     url = "https://test.api.amadeus.com/v2/shopping/flight-offers"
@@ -140,7 +163,6 @@ def main():
 
     for start, end in PERIODS:
         start_date = datetime.fromisoformat(start)
-        # не ищем слишком рано (5–6 месяцев до периода)
         if (start_date - now).days > 200:
             continue
 
@@ -150,11 +172,19 @@ def main():
 
         for dest in destinations:
             for depart, ret in date_pairs:
+                # задержка 2–5 секунд
+                time.sleep(random.randint(2,5))
+
                 try:
                     data = search_flights(token, ORIGIN, dest, depart, ret)
-                except Exception as e:
-                    print(f"Error {dest} {depart}-{ret}: {e}")
-                    continue
+                except requests.exceptions.HTTPError as e:
+                    if e.response.status_code == 429:
+                        print(f"Too many requests, sleeping 10 секунд...")
+                        time.sleep(10)
+                        data = search_flights(token, ORIGIN, dest, depart, ret)
+                    else:
+                        print(f"Error {dest} {depart}-{ret}: {e}")
+                        continue
 
                 offers = data.get("data", [])
                 for offer in offers:
@@ -162,11 +192,13 @@ def main():
                     # добавляем багаж
                     total_price += BAG_ESTIMATE_ONEWAY*2*(ADULTS+CHILDREN)
 
+                    if total_price > MAX_PRICE:
+                        continue
+
                     itineraries = offer.get("itineraries", [])
                     if not itineraries:
                         continue
 
-                    # проверка длительности
                     outbound = itineraries[0].get("segments", [])[0]
                     duration = itineraries[0].get("duration", "PT0H")
                     if not duration_under_limit(duration):
@@ -189,12 +221,10 @@ def main():
                     })
 
     if found:
-        # сортировка по цене
         found.sort(key=lambda x: x["price"])
         msg = "✈️ <b>Найдены варианты</b>\n\n"
         for f in found:
-            price_label = "🟢" if f["price"] <= MAX_PRICE else "🟡"
-            msg += f"{price_label} {f['city']} ({f['iata']})\n"
+            msg += f"{f['city']} ({f['iata']})\n"
             msg += f"{ORIGIN} → {f['iata']}\n"
             msg += f"{f['depart']} – {f['return']}\n"
             msg += f"{f['airline']} {f['dep_time']}\n"

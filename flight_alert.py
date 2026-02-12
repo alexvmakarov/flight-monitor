@@ -172,18 +172,27 @@ def main():
             for depart, ret in date_pairs:
                 # задержка 2–5 секунд
                 time.sleep(random.randint(2,5))
-
-                try:
-                    data = search_flights(token, ORIGIN, dest, depart, ret)
-                except requests.exceptions.HTTPError as e:
-                    if e.response.status_code == 429:
-                        print(f"Too many requests, sleeping 10 секунд...")
-                        time.sleep(10)
+                
+                max_retries = 3
+                for attempt in range(max_retries):
+                    try:
                         data = search_flights(token, ORIGIN, dest, depart, ret)
-                    else:
-                        print(f"Error {dest} {depart}-{ret}: {e}")
-                        continue
-
+                    except requests.exceptions.HTTPError as e:
+                        if e.response.status_code == 429:
+                            print(f"Too many requests, sleeping 10 секунд...")
+                            time.sleep(10)
+                        elif e.response.status_code == 500:
+                            print(f"Server error for {dest} {depart}-{ret}, retry {attempt+1}")
+                            time.sleep(5)
+                        else:
+                            print(f"Other error {dest} {depart}-{ret}: {e}")
+                            data = {}
+                            break
+                else:
+                    # если все попытки неудачные, пропускаем этот рейс
+                    print(f"Skipping {dest} {depart}-{ret} after {max_retries} retries")
+                    continue
+                    
                 offers = data.get("data", [])
                 for offer in offers:
                     total_price = float(offer["price"]["total"])

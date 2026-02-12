@@ -1,31 +1,36 @@
 import os
-import asyncio
-from datetime import datetime, timedelta
-from playwright.async_api import async_playwright
 import requests
+from datetime import datetime, timedelta
+
+API_KEY = os.getenv("AMADEUS_API_KEY")
+API_SECRET = os.getenv("AMADEUS_API_SECRET")
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+MAX_PRICE = int(os.getenv("MAX_PRICE_EUR", "700"))
 
 ORIGIN = "AMS"
 ADULTS = 2
 CHILDREN = 1
-MAX_PRICE = int(os.getenv("MAX_PRICE_EUR", "700"))
 
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
-
-# Даты
 PERIODS = [
     ("2026-02-21", "2026-03-01"),
     ("2026-07-04", "2026-08-16"),
     ("2026-10-18", "2026-10-26"),
 ]
 
-# Направления по сезону
 WINTER = ["AYT","HRG","LCA"]
 SUMMER = ["ALC","AGP","FAO","HER","RHO","AYT"]
 AUTUMN = ["FAO","ALC","AGP","LCA","AYT"]
 
-MAX_FLIGHT_HOURS = 5
-BAG_ESTIMATE_ONEWAY = 35  # если багаж не включен
+def get_access_token():
+    url = "https://test.api.amadeus.com/v1/security/oauth2/token"
+    data = {
+        "grant_type": "client_credentials",
+        "client_id": API_KEY,
+        "client_secret": API_SECRET
+    }
+    r = requests.post(url, data=data)
+    return r.json()["access_token"]
 
 def send_telegram(msg):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
@@ -41,12 +46,11 @@ def generate_date_pairs(start, end):
     pairs = []
     d = start
     while d <= end:
-        for stay in range(5, 12):
-            ret = d + timedelta(days=stay)
-            if ret <= end:
-                pairs.append((d.strftime("%Y-%m-%d"), ret.strftime("%Y-%m-%d")))
-        d += timedelta(days=3)
-    return pairs[:40]
+        ret = d + timedelta(days=7)
+        if ret <= end:
+            pairs.append((d.strftime("%Y-%m-%d"), ret.strftime("%Y-%m-%d")))
+        d += timedelta(days=7)
+    return pairs[:8]
 
 def destinations_for_month(month):
     if month in (7,8):
@@ -57,31 +61,36 @@ def destinations_for_month(month):
         return AUTUMN
     return SUMMER
 
-async def search_kayak(origin, dest, depart, ret):
-    url = f"https://www.kayak.com/flights/{origin}-{dest}/{depart}/{ret}?sort=price_a&fs=stops=0"
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
-        page = await browser.new_page()
-        await page.goto(url, timeout=60000)
-        await page.wait_for_timeout(10000)
+def search_flights(token, origin, dest, depart, ret):
+    url = "https://test.api.amadeus.com/v2/shopping/flight-offers"
+    params = {
+        "originLocationCode": origin,
+        "destinationLocationCode": dest,
+        "departureDate": depart,
+        "returnDate": ret,
+        "adults": ADULTS,
+        "children": CHILDREN,
+        "nonStop": "true",
+        "currencyCode": "EUR",
+        "max": 5
+    }
+    headers = {"Authorization": f"Bearer {token}"}
+    r = requests.get(url, headers=headers, params=params)
+    data = r.json()
 
-        prices = await page.query_selector_all("span")
-        cheapest = None
+    if "data" not in data:
+        return None
 
-        for el in prices:
-            text = await el.inner_text()
-            if text and text.startswith("€"):
-                try:
-                    value = int(text.replace("€","").replace(",",""))
-                    if not cheapest or value < cheapest:
-                        cheapest = value
-                except:
-                    pass
+    cheapest = None
+    for offer in data["data"]:
+        price = float(offer["price"]["total"])
+        if not cheapest or price < cheapest:
+            cheapest = price
 
-        await browser.close()
-        return cheapest
+    return cheapest
 
-async def main():
+def main():
+    token = get_access_token()
     found = []
 
     for start, end in PERIODS:
@@ -91,19 +100,17 @@ async def main():
 
         for dest in destinations:
             for depart, ret in date_pairs:
-                price = await search_kayak(ORIGIN, dest, depart, ret)
+                price = search_flights(token, ORIGIN, dest, depart, ret)
                 if not price:
                     continue
 
-                # добавляем багаж если нужно (эвристика)
-                total_estimated = price + BAG_ESTIMATE_ONEWAY*2*(ADULTS+CHILDREN)
-
-                if total_estimated <= MAX_PRICE:
-                    found.append(f"{dest} {depart}-{ret} €{total_estimated}")
+                if price <= MAX_PRICE:
+                    found.append(f"{dest} {depart}-{ret} €{int(price)}")
 
     if found:
-        msg = "✈️ <b>Найдены варианты до €{}</b>\n\n".format(MAX_PRICE)
+        msg = f"✈️ <b>Варианты до €{MAX_PRICE}</b>\n\n"
         msg += "\n".join(found)
         send_telegram(msg)
 
-asyncio.run(main())
+if __name__ == "__main__":
+    main()

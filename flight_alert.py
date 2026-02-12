@@ -33,17 +33,16 @@ AIRLINE_MAP = {
 }
 
 # ------------------- СЕЗОНЫ -------------------
-WINTER = ["AYT", "DLM", "HRG", "SSH", "LCA"]
+WINTER = ["AYT", "DLM", "HRG", "SSH"]
 SUMMER = [
     "ALC","AGP","PMI","IBZ","TFS",
     "FAO","LIS",
     "NAP","BRI","PSR","CAG",
     "HER","RHO","CFU","SKG",
     "AYT","DLM",
-    "HRG","SSH",
-    "LCA"
+    "HRG","SSH"
 ]
-AUTUMN = ["ALC","AGP","PMI","IBZ","FAO","HER","RHO","AYT","DLM","HRG","SSH","LCA"]
+AUTUMN = ["ALC","AGP","PMI","IBZ","FAO","HER","RHO","AYT","DLM","HRG","SSH"]
 
 IATA_MAP = {
     "ALC": "Alicante, Spain",
@@ -64,8 +63,7 @@ IATA_MAP = {
     "AYT": "Antalya, Turkey",
     "DLM": "Dalaman, Turkey",
     "HRG": "Hurghada, Egypt",
-    "SSH": "Sharm El Sheikh, Egypt",
-    "LCA": "Larnaca, Cyprus"
+    "SSH": "Sharm El Sheikh, Egypt"
 }
 
 # ------------------- Периоды каникул -------------------

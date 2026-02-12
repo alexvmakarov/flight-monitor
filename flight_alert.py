@@ -36,11 +36,11 @@ AIRLINE_MAP = {
 WINTER = ["AYT", "DLM", "HRG", "SSH"]
 SUMMER = [
     "ALC","AGP","PMI","IBZ","TFS",
-    "FAO","LIS",
-    "NAP","BRI","PSR","CAG",
-    "HER","RHO","CFU","SKG",
-    "AYT","DLM",
-    "HRG","SSH"
+    # "FAO","LIS",
+    # "NAP","BRI","PSR","CAG",
+    # "HER","RHO","CFU","SKG",
+    # "AYT","DLM",
+    # "HRG","SSH"
 ]
 AUTUMN = ["ALC","AGP","PMI","IBZ","FAO","HER","RHO","AYT","DLM","HRG","SSH"]
 
@@ -68,8 +68,8 @@ IATA_MAP = {
 
 # ------------------- Периоды каникул -------------------
 PERIODS = [
-    ("2026-02-21", "2026-03-01")
-    # ("2026-07-04", "2026-08-16"),
+    # ("2026-02-21", "2026-03-01")
+     ("2026-07-04", "2026-08-16")
     # ("2026-10-18", "2026-10-26")
 ]
 

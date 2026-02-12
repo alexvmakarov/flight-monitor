@@ -44,7 +44,7 @@ AIRLINE_MAP = {
 }
 
 def get_access_token():
-    url = "https://api.amadeus.com/v1/security/oauth2/token"
+    url = "https://test.api.amadeus.com/v1/security/oauth2/token"
     data = {
         "grant_type": "client_credentials",
         "client_id": API_KEY,
@@ -89,7 +89,7 @@ def duration_under_limit(duration_iso):
     return hours <= MAX_DURATION_HOURS
 
 def search_flights(token, origin, dest, depart, ret):
-    url = "https://api.amadeus.com/v2/shopping/flight-offers"
+    url = "https://test.api.amadeus.com/v2/shopping/flight-offers"
     params = {
         "originLocationCode": origin,
         "destinationLocationCode": dest,
